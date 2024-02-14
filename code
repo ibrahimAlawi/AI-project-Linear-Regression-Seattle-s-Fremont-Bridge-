@@ -1,0 +1,72 @@
+from IPython.display import clear_output
+from sklearn import utils
+
+clear_output()
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+data_df = pd.read_csv('bikers_data.csv')
+data_df.head()
+data_df.describe()
+
+# Custom linear regression class
+class LinearRegression:
+    def __init__(self):
+        self.weights = None
+
+    def fit(self, X, y):
+        X_b = np.c_[np.ones((X.shape[0], 1)), X]
+        self.weights = np.linalg.inv(X_b.T.dot(X_b)).dot(X_b.T).dot(y)
+
+    def predict(self, X):
+        X_b = np.c_[np.ones((X.shape[0], 1)), X]
+        return X_b.dot(self.weights)
+
+    def mean_squared_error(self, y_true, y_pred):
+        return np.mean((y_true - y_pred) ** 2)
+
+# Load the dataset
+bikers_data = pd.read_csv('bikers_data.csv', index_col='Date', parse_dates=True)
+
+# Clean and prepare the data
+bikers_data_cleaned = bikers_data.dropna()
+features = bikers_data_cleaned.drop(columns=['Number of bikers'])
+target = bikers_data_cleaned['Number of bikers']
+
+# Split into training and validation sets
+X_train, X_validation, y_train, y_validation = train_test_split(features, target, test_size=0.2, random_state=42)
+
+# Feature scaling
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_validation_scaled = scaler.transform(X_validation)
+
+# Logarithmic transformation of the target variable
+y_train_log = np.log(y_train + 1)
+y_validation_log = np.log(y_validation + 1)
+
+# Train the model
+lr_model = LinearRegression()
+lr_model.fit(X_train_scaled, y_train_log)
+
+# Predictions
+y_train_pred_log = lr_model.predict(X_train_scaled)
+y_validation_pred_log = lr_model.predict(X_validation_scaled)
+
+# Transform predictions back to the original scale
+y_train_pred_log = lr_model.predict(X_train_scaled)
+y_validation_pred_log = lr_model.predict(X_validation_scaled)
+
+y_train_pred = np.exp(y_train_pred_log) - 1
+y_validation_pred = np.exp(y_validation_pred_log) - 1
+
+# Calculate Mean Squared Error
+train_loss = lr_model.mean_squared_error(y_train, y_train_pred)
+validation_loss = lr_model.mean_squared_error(y_validation, y_validation_pred)
+
+print(f"Training Loss (MSE): {train_loss}")
+print(f"Validation Loss (MSE): {validation_loss}")
